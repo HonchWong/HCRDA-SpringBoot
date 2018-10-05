@@ -1,0 +1,14 @@
+{
+  "vendors.css": "/vendors.chunk.css",
+  "vendors.js": "/vendors.async.js",
+  "umi.css": "/umi.css",
+  "umi.js": "/umi.js",
+  "2.chunk.css": "/2.chunk.css",
+  "2.async.js": "/2.async.js",
+  "3.chunk.css": "/3.chunk.css",
+  "3.async.js": "/3.async.js",
+  "static/logo.svg": "/static/logo.1eb88ca8.svg",
+  "favicon.png": "/favicon.png",
+  "color.less": "/color.less",
+  "index.html": "/index.html"
+}
