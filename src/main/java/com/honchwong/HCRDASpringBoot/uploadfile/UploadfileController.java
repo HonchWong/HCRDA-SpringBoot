@@ -49,25 +49,28 @@ import org.apache.commons.io.IOUtils;
 @RestController
 public class UploadfileController {
 	private Map<String,Object> params = new HashMap<>();
-	
+
 	@Value("classpath:uploadFile/needUpLoadList.json")
 	private Resource needUpLoadListJson;
 
 
-	@Value("classpath:userLog/")
-	private Resource userLogFilePath;
+//	@Value("classpath:userLog/")
+//	private Resource userLogFilePath;
+
+//	@Value("${web.file.path}")
+//	private String userLogFilePath;
 
 	@GetMapping(value="/api/needUploadList")
 	public Object needUploadList(){
 		params.clear();
-		
-	    String jsonStr = "error";
+
+		String jsonStr = "error";
 		try {
 			jsonStr = IOUtils.toString(needUpLoadListJson.getInputStream(), "UTF-8");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	    
+
 		ObjectMapper objectMapper = new ObjectMapper();
 		params.put("status", "error");
 		Map map = params;
@@ -77,17 +80,17 @@ public class UploadfileController {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		return map;
 	}
-	
+
 	@GetMapping(value="/api/getFileList")
 	public Object getFileList(@RequestParam String name) throws IOException {
 		System.out.println("/api/getFileList " + name);
 
 		params.clear();
-		File dir = userLogFilePath.getFile();
-        String[] children = dir.list();
+		File dir = new File(getJarRootPath(), "/userLog/");
+		String[] children = dir.list();
 		List<Map> fileParams = new ArrayList<>();
 		for(int i = 0; i < children.length; i++) {
 			Map<String,Object> fileParam = new HashMap<>();
@@ -106,42 +109,40 @@ public class UploadfileController {
 		if (!fileParams.isEmpty()) {
 			params.put("list", fileParams);
 		}
-        
+
 		return params;
 	}
-	
-    @GetMapping(value="/api/download/{fileName}")
-    public void download(HttpServletRequest request, HttpServletResponse response,
-    		@PathVariable("fileName") String fileName) throws IOException {
-		System.out.println("userLogFilePath getFilename: "+ userLogFilePath.getFilename());
-		System.out.println("userLogFilePath getAbsolutePath: "+ userLogFilePath.getFile().getAbsolutePath());
-		File fileDownload = new File(userLogFilePath.getFile().getAbsolutePath() + '/' + fileName);
+
+	@GetMapping(value="/api/download/{fileName}")
+	public void download(HttpServletRequest request, HttpServletResponse response,
+						 @PathVariable("fileName") String fileName) throws IOException {
+		File fileDownload = new File(getJarRootPath(), "/userLog/" + fileName);
 		System.out.println("fileDownload: "+fileDownload.getAbsolutePath());
 		if (fileDownload.exists()) {
-        	
-            String mimeType = URLConnection.guessContentTypeFromName(fileDownload.getName());
-            if (mimeType == null) {
-                mimeType = "application/octet-stream";
-            }
-            System.out.println("mimeType:"+mimeType);
 
-            response.setContentType(mimeType);   
-            System.out.println("fileDownload.getName():"+fileDownload.getName());
-            response.setHeader("Content-Disposition", "attachment; fileName="+  fileDownload.getName() +";filename*=utf-8''"+URLEncoder.encode(fileDownload.getName(), "UTF-8"));
-            response.setContentLength((int) fileDownload.length());
+			String mimeType = URLConnection.guessContentTypeFromName(fileDownload.getName());
+			if (mimeType == null) {
+				mimeType = "application/octet-stream";
+			}
+			System.out.println("mimeType:"+mimeType);
 
-            InputStream inputStream = new BufferedInputStream(new FileInputStream(fileDownload));
+			response.setContentType(mimeType);
+			System.out.println("fileDownload.getName():"+fileDownload.getName());
+			response.setHeader("Content-Disposition", "attachment; fileName="+  fileDownload.getName() +";filename*=utf-8''"+URLEncoder.encode(fileDownload.getName(), "UTF-8"));
+			response.setContentLength((int) fileDownload.length());
 
-            FileCopyUtils.copy(inputStream, response.getOutputStream());
-        }
-    }
+			InputStream inputStream = new BufferedInputStream(new FileInputStream(fileDownload));
+
+			FileCopyUtils.copy(inputStream, response.getOutputStream());
+		}
+	}
 
 	@PostMapping(value="/api/updateNeedUploadList")
-	public Object updateNeedUploadList(@RequestBody Map<String,Object> reqMap){	
+	public Object updateNeedUploadList(@RequestBody Map<String,Object> reqMap){
 		System.out.println("/api/updateNeedUploadList");
 		params.clear();
 		params.put("status", "ok");
-		
+
 		String jsonStr = "error";
 		try {
 			jsonStr = new ObjectMapper().writeValueAsString(reqMap);
@@ -149,7 +150,7 @@ public class UploadfileController {
 			e.printStackTrace();
 		}
 		System.out.println(jsonStr);
-		
+
 		File jsonFile = null;
 		try {
 			jsonFile = ResourceUtils.getFile(ResourceUtils.CLASSPATH_URL_PREFIX + "uploadFile/needUpLoadList.json");
@@ -162,59 +163,76 @@ public class UploadfileController {
 		if (!jsonStr.equals("error") && jsonFile != null) {
 			FileWriter fw=null;
 			try {
-			    fw = new FileWriter(jsonFile);
+				fw = new FileWriter(jsonFile);
 				IOUtils.write(jsonStr, fw);
 			} catch (IOException e) {
 				e.printStackTrace();
 				params.put("status", "error");
 			} finally {
-			    IOUtils.closeQuietly(fw);
+				IOUtils.closeQuietly(fw);
 			}
 		}
 
 		return params;
 	}
-	
-	@PostMapping("/api/upload") 
-	public Object singleFileUpload(@RequestParam("user_log") MultipartFile file, HttpServletRequest request) {
-        String fileName = file.getOriginalFilename();	           
-        String name = fileName.substring(0, fileName.lastIndexOf("."));
-        String suffixName = fileName.substring(fileName.lastIndexOf("."));
-        String formatDate = UploadfileController.timeStampToFormatDate(System.currentTimeMillis(), "yyyy-MM-dd_HH:mm:ss");
-        fileName = name + "_" + formatDate + suffixName;
 
-        System.out.println("转换后的名称:"+fileName);
-        System.out.println("文件路径:"+userLogFilePath);
-	       
+	@PostMapping("/api/upload")
+	public Object singleFileUpload(@RequestParam("user_log") MultipartFile file, HttpServletRequest request) throws FileNotFoundException {
+		String fileName = file.getOriginalFilename();
+		String name = fileName.substring(0, fileName.lastIndexOf("."));
+		String suffixName = fileName.substring(fileName.lastIndexOf("."));
+		String formatDate = UploadfileController.timeStampToFormatDate(System.currentTimeMillis(), "yyyy-MM-dd_HH:mm:ss");
+		fileName = name + "_" + formatDate + suffixName;
+
+		System.out.println("转换后的名称:"+fileName);
+
+		File savePath = new File(getJarRootPath(), "/userLog/" + fileName);
+
 		try {
-	        byte[] bytes = file.getBytes();
-	        Path path = Paths.get(userLogFilePath + fileName);
-	        Files.write(path, bytes);
-	        return new JsonData(0, "ok", null);
+			byte[] bytes = file.getBytes();
+
+			Path path = Paths.get(savePath.getAbsolutePath());
+			Files.write(path, bytes);
+			return new JsonData(0, "ok", null);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-        return  new JsonData(-1, "fail to save ", null);
+
+		return  new JsonData(-1, "fail to save ", null);
+	}
+
+	private String getJarRootPath() throws FileNotFoundException {
+		String path = ResourceUtils.getURL("classpath:").getPath();
+		//=> file:/root/tmp/demo-springboot-0.0.1-SNAPSHOT.jar!/BOOT-INF/classes!/
+//		log.debug("ResourceUtils.getURL(\"classpath:\").getPath() -> "+path);
+		//创建File时会自动处理前缀和jar包路径问题  => /root/tmp
+		File rootFile = new File(path);
+		if(!rootFile.exists()) {
+//			log.info("根目录不存在, 重新创建");
+			rootFile = new File("");
+//			log.info("重新创建的根目录: "+rootFile.getAbsolutePath());
+		}
+//		log.debug("项目根目录: "+rootFile.getAbsolutePath());        //获取的字符串末尾没有分隔符 /
+		return rootFile.getAbsolutePath();
 	}
 
 	/**
-     * 时间戳转换为格式化日期
-     *
-     * @param dateObj 时间对象
-     *                System.currentTimeMillis()
-     *                new Date()
-     *                new Date().getTime()
-     *                Calendar.getInstance().getTimeInMillis()
-     * @param pattern 日期格式
-     *                yyyy-MM-dd HH:mm:ss
-     *                yyyy/MM/dd HH:mm:ss
-     *                yyyy年MM月dd日 HH:mm:ss
-     * @return sdf.format(Object dateObj)
-     */
-    public static String timeStampToFormatDate(Object dateObj, String pattern) {
-        SimpleDateFormat sdf = new SimpleDateFormat(pattern);
-        String formatDate = sdf.format(dateObj);
-        return formatDate;
-    }
+	 * 时间戳转换为格式化日期
+	 *
+	 * @param dateObj 时间对象
+	 *                System.currentTimeMillis()
+	 *                new Date()
+	 *                new Date().getTime()
+	 *                Calendar.getInstance().getTimeInMillis()
+	 * @param pattern 日期格式
+	 *                yyyy-MM-dd HH:mm:ss
+	 *                yyyy/MM/dd HH:mm:ss
+	 *                yyyy年MM月dd日 HH:mm:ss
+	 * @return sdf.format(Object dateObj)
+	 */
+	public static String timeStampToFormatDate(Object dateObj, String pattern) {
+		SimpleDateFormat sdf = new SimpleDateFormat(pattern);
+		String formatDate = sdf.format(dateObj);
+		return formatDate;
+	}
 }
