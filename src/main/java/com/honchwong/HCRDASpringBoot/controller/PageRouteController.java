@@ -31,4 +31,24 @@ public class PageRouteController {
     public Object remotelog(){
         return indexPath;
     }
+
+    @RequestMapping(value="/user/login")
+    public Object login(){
+        return indexPath;
+    }
+
+    @RequestMapping(value="/exception/500")
+    public Object page500(){
+        return indexPath;
+    }
+
+    @RequestMapping(value="/exception/403")
+    public Object page403(){
+        return indexPath;
+    }
+
+    @RequestMapping(value="/exception/404")
+    public Object page404(){
+        return indexPath;
+    }
 }

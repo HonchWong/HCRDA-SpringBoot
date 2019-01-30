@@ -1,4 +1,4 @@
-package com.honchwong.HCRDASpringBoot.uploadfile;
+package com.honchwong.HCRDASpringBoot.controller;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import com.honchwong.HCRDASpringBoot.Unit.ReadAndWriteJson;
 import com.honchwong.HCRDASpringBoot.domain.JsonData;
 
 import javax.servlet.http.HttpServletRequest;
@@ -27,8 +28,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,14 +36,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.util.ResourceUtils;
-import org.apache.commons.io.IOUtils;
 
 @RestController
 public class UploadfileController {
@@ -54,26 +48,51 @@ public class UploadfileController {
 	private Resource needUpLoadListJson;
 
 
-//	@Value("classpath:userLog/")
-//	private Resource userLogFilePath;
+	@GetMapping(value="/api/needUpload")
+	public Object needUpload(@RequestParam String uin) throws IOException {
+		params.clear();
+		params.put("needUpload", 0);
 
-//	@Value("${web.file.path}")
-//	private String userLogFilePath;
+//		String jsonFilePath = getJarRootPath() + "/needUploadList/needUploadList.json";
+		String jsonFilePath = getFileDirPath() + "/needUploadList/needUpLoadList.json";
+
+		System.out.println("jsonFilePath " + jsonFilePath);
+		String jsonStr = ReadAndWriteJson.ReadFile(jsonFilePath);
+		ObjectMapper objectMapper = new ObjectMapper();
+		Map map = objectMapper.readValue(jsonStr, Map.class);
+		List<Map> list = (List<Map>) map.get("needUploadList");
+		if (!list.isEmpty()) {
+			for (int i = 0; i < list.size(); i++) {
+				Map needUploadMap = list.get(i);
+				if (uin.equals(needUploadMap.get("uin"))) {
+					if (needUploadMap.get("uploadType") != null) {
+						params.put("needUpload", needUploadMap.get("uploadType"));
+					} else {
+						params.put("needUpload", 0);
+					}
+				}
+			}
+		}
+
+		return params;
+	}
 
 	@GetMapping(value="/api/needUploadList")
 	public Object needUploadList(){
 		params.clear();
+		params.put("status", "error");
 
-		String jsonStr = "error";
+		String jsonFilePath = null;
 		try {
-			jsonStr = IOUtils.toString(needUpLoadListJson.getInputStream(), "UTF-8");
-		} catch (IOException e) {
+			jsonFilePath = getFileDirPath() + "/needUploadList/needUpLoadList.json";
+//			jsonFilePath = getJarRootPath() + "/needUploadList/needUploadList.json";
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-
+		System.out.println("jsonFilePath " + jsonFilePath);
+		String jsonStr = ReadAndWriteJson.ReadFile(jsonFilePath);
 		ObjectMapper objectMapper = new ObjectMapper();
-		params.put("status", "error");
-		Map map = params;
+		Map map = null;
 		try {
 			map = objectMapper.readValue(jsonStr, Map.class);
 			map.put("status", "ok");
@@ -89,7 +108,9 @@ public class UploadfileController {
 		System.out.println("/api/getFileList " + name);
 
 		params.clear();
-		File dir = new File(getJarRootPath(), "/userLog/");
+//		File dir = new File(getJarRootPath(), "/userLog/");
+		File dir = new File(getFileDirPath(), "/userLog/");
+
 		String[] children = dir.list();
 		List<Map> fileParams = new ArrayList<>();
 		for(int i = 0; i < children.length; i++) {
@@ -116,7 +137,11 @@ public class UploadfileController {
 	@GetMapping(value="/api/download/{fileName}")
 	public void download(HttpServletRequest request, HttpServletResponse response,
 						 @PathVariable("fileName") String fileName) throws IOException {
-		File fileDownload = new File(getJarRootPath(), "/userLog/" + fileName);
+//		String tempPath = "/Users/huanghongchang/Desktop/temp";
+// 		File fileDownload = new File(tempPath, "/userLog/" + fileName);
+//		File fileDownload = new File(getJarRootPath(), "/userLog/" + fileName);
+		File fileDownload = new File(getFileDirPath(), "/userLog/" + fileName);
+
 		System.out.println("fileDownload: "+fileDownload.getAbsolutePath());
 		if (fileDownload.exists()) {
 
@@ -124,7 +149,8 @@ public class UploadfileController {
 			if (mimeType == null) {
 				mimeType = "application/octet-stream";
 			}
-			System.out.println("mimeType:"+mimeType);
+//			String mimeType = "application/zip";
+			System.out.println("mimeType:"+ mimeType);
 
 			response.setContentType(mimeType);
 			System.out.println("fileDownload.getName():"+fileDownload.getName());
@@ -138,40 +164,24 @@ public class UploadfileController {
 	}
 
 	@PostMapping(value="/api/updateNeedUploadList")
-	public Object updateNeedUploadList(@RequestBody Map<String,Object> reqMap){
+	public Object updateNeedUploadList(@RequestBody Map<String,Object> reqMap) throws IOException {
 		System.out.println("/api/updateNeedUploadList");
 		params.clear();
-		params.put("status", "ok");
+
+//		String jsonFilePath = getJarRootPath() + "/needUploadList/needUploadList.json";
+		String jsonFilePath = getFileDirPath() + "/needUploadList/needUpLoadList.json";
 
 		String jsonStr = "error";
 		try {
 			jsonStr = new ObjectMapper().writeValueAsString(reqMap);
+			ReadAndWriteJson.writeFile(jsonFilePath, jsonStr);
+			params.put("status", "ok");
 		} catch (JsonProcessingException e) {
+			params.put("status", "error");
+			params.put("msg", e.toString());
 			e.printStackTrace();
 		}
 		System.out.println(jsonStr);
-
-		File jsonFile = null;
-		try {
-			jsonFile = ResourceUtils.getFile(ResourceUtils.CLASSPATH_URL_PREFIX + "uploadFile/needUpLoadList.json");
-		} catch (FileNotFoundException e) {
-			params.put("status", "error");
-			e.printStackTrace();
-		}
-		System.out.println(jsonFile);
-
-		if (!jsonStr.equals("error") && jsonFile != null) {
-			FileWriter fw=null;
-			try {
-				fw = new FileWriter(jsonFile);
-				IOUtils.write(jsonStr, fw);
-			} catch (IOException e) {
-				e.printStackTrace();
-				params.put("status", "error");
-			} finally {
-				IOUtils.closeQuietly(fw);
-			}
-		}
 
 		return params;
 	}
@@ -182,11 +192,14 @@ public class UploadfileController {
 		String name = fileName.substring(0, fileName.lastIndexOf("."));
 		String suffixName = fileName.substring(fileName.lastIndexOf("."));
 		String formatDate = UploadfileController.timeStampToFormatDate(System.currentTimeMillis(), "yyyy-MM-dd_HH:mm:ss");
-		fileName = name + "_" + formatDate + suffixName;
+		fileName = name + "_uploadTime_" + formatDate + suffixName;
 
 		System.out.println("转换后的名称:"+fileName);
+//		String tempPath = "/Users/huanghongchang/Desktop/temp";
+//		File savePath = new File(getJarRootPath(), "/userLog/" + fileName);
+		File savePath = new File(getFileDirPath(), "/userLog/" + fileName);
 
-		File savePath = new File(getJarRootPath(), "/userLog/" + fileName);
+//		File savePath = new File(tempPath, "/userLog/" + fileName);
 
 		try {
 			byte[] bytes = file.getBytes();
@@ -201,19 +214,43 @@ public class UploadfileController {
 		return  new JsonData(-1, "fail to save ", null);
 	}
 
-	private String getJarRootPath() throws FileNotFoundException {
+//	private String getJarRootPath() throws FileNotFoundException {
+//		String path = ResourceUtils.getURL("classpath:").getPath();
+//		//=> file:/root/tmp/demo-springboot-0.0.1-SNAPSHOT.jar!/BOOT-INF/classes!/
+////		log.debug("ResourceUtils.getURL(\"classpath:\").getPath() -> "+path);
+//		//创建File时会自动处理前缀和jar包路径问题  => /root/tmp
+//		File rootFile = new File(path);
+//		if(!rootFile.exists()) {
+////			log.info("根目录不存在, 重新创建");
+//			rootFile = new File("");
+////			log.info("重新创建的根目录: "+rootFile.getAbsolutePath());
+//		}
+////		log.debug("项目根目录: "+rootFile.getAbsolutePath());        //获取的字符串末尾没有分隔符 /
+//
+////		String temp = new String("/Users/huanghongchang/workspcae/github_code/HCRDA-SpringBoot/src/main/resources");
+////		return temp;
+//		return rootFile.getAbsolutePath();
+//	}
+
+
+	private String getFileDirPath() throws FileNotFoundException {
+//		String path = "/usr/local/app/RDAssistant/";
 		String path = ResourceUtils.getURL("classpath:").getPath();
+		System.out.println(path);
 		//=> file:/root/tmp/demo-springboot-0.0.1-SNAPSHOT.jar!/BOOT-INF/classes!/
 //		log.debug("ResourceUtils.getURL(\"classpath:\").getPath() -> "+path);
 		//创建File时会自动处理前缀和jar包路径问题  => /root/tmp
-		File rootFile = new File(path);
-		if(!rootFile.exists()) {
+//		File rootFile = new File(path);
+//		if(!rootFile.exists()) {
 //			log.info("根目录不存在, 重新创建");
-			rootFile = new File("");
+//			rootFile = new File("");
 //			log.info("重新创建的根目录: "+rootFile.getAbsolutePath());
-		}
+//		}
 //		log.debug("项目根目录: "+rootFile.getAbsolutePath());        //获取的字符串末尾没有分隔符 /
-		return rootFile.getAbsolutePath();
+
+//		String temp = new String("/Users/huanghongchang/workspcae/github_code/HCRDA-SpringBoot/src/main/resources");
+//		return temp;
+		return "/usr/local/app/RDAssistant";
 	}
 
 	/**
