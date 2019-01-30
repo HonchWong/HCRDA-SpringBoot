@@ -1,4 +1,4 @@
-package com.honchwong.HCRDASpringBoot.user;
+package com.honchwong.HCRDASpringBoot.controller;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,44 +61,4 @@ public class UserController {
 		params.put("currentAuthority", "user");
 		return params;
 	}
-
-//	@GetMapping(value="/api/500")
-//	public Object get500Page(){
-//		params.clear();
-//		params.put("status", 500);
-//		params.put("error", "error");
-//		params.put("message", "error");
-//		params.put("path", "/base/category/list");
-//		return params;
-//	}
-//
-//	@GetMapping(value="/api/404")
-//	public Object get404Page(){
-//		params.clear();
-//		params.put("status", 404);
-//		params.put("error", "Not Found");
-//		params.put("message", "No message available");
-//		params.put("path", "/base/category/list/2121212");
-//		return params;
-//	}
-//
-//	@GetMapping(value="/api/403")
-//	public Object get403Page(){
-//		params.clear();
-//		params.put("status", 403);
-//		params.put("error", "Unauthorized");
-//		params.put("message", "Unauthorized");
-//		params.put("path", "/base/category/list");
-//		return params;
-//	}
-//
-//	@GetMapping(value="/api/401")
-//	public Object get401Page(){
-//		params.clear();
-//		params.put("status", 401);
-//		params.put("error", "Unauthorized");
-//		params.put("message", "Unauthorized");
-//		params.put("path", "/base/category/list");
-//		return params;
-//	}
 }

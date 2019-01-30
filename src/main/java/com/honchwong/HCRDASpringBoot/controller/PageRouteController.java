@@ -1,4 +1,4 @@
-package com.honchwong.HCRDASpringBoot.pageRoute;
+package com.honchwong.HCRDASpringBoot.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
